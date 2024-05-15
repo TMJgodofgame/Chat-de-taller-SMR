@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat de clase</title>
+    <link rel="icon" href="https://lh6.googleusercontent.com/-FYGbN86dFMc/TXAMVr7P8EI/AAAAAAAAAIs/cewb4Ub3f7g/s1600/Imagen1.png" type="image/png">
+    <style>
+        /* Estilo para el contenedor del chat */
+        #chat-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            margin: 20px;
+        }
+
+        /* Estilo para los mensajes del chat */
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 5px;
+        }
+
+        /* Estilo para los mensajes enviados por el usuario */
+        .sent-message {
+            background-color: #3498db;
+            color: #fff;
+        }
+
+        /* Estilo para los mensajes recibidos del servidor */
+        .received-message {
+            background-color: #e74c3c;
+            color: #fff;
+        }
+
+        /* Estilo para las URLs dentro de los mensajes */
+        .message a {
+            color: yellow; /* Cambia el color del texto de las URLs a amarillo */
+        }
+
+        /* Estilo para el área de entrada de mensajes */
+        #message-input {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            background-color: #fff;
+            border-top: 1px solid #eee;
+            border-radius: 0 0 10px 10px;
+            margin: 20px;
+        }
+
+        /* Estilo para el botón de enviar mensaje */
+        #send-button {
+            background-color: #2ecc71;
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #send-button:hover {
+            background-color: #27ae60;
+        }
+
+        /* Estilo para el contador de mensajes no leídos */
+        #unread-counter {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <h2>Chat <span id="unread-counter"></span></h2>
+        <div id="message-list"></div>
+    </div>
+
+    <div id="message-input">
+        <input type="text" id="message-text" placeholder="Escribe tu mensaje...">
+        <button id="send-button">Enviar</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let teamName = '';
+        let unreadMessages = 0;
+
+        // Mostrar cuadro de diálogo para ingresar el nombre del equipo
+        teamName = window.prompt("Ingresa los nombres de tu equipo:");
+
+        function addMessageToChat(message, isSentMessage) {
+            const messageList = document.getElementById('message-list');
+            const messageElement = document.createElement('div');
+            // Buscar URLs en el mensaje y convertirlas en enlaces clicables
+            message = message.replace(/\bhttps?:\/\/\S+/gi, function(match) {
+                return `<a href="${match}" target="_blank">${match}</a>`;
+            });
+            messageElement.innerHTML = message;
+            messageElement.classList.add('message');
+            if (isSentMessage) {
+                messageElement.classList.add('sent-message');
+            } else {
+                messageElement.classList.add('received-message');
+                unreadMessages++; // Incrementar el contador de mensajes no leídos para los mensajes recibidos
+                updateUnreadCounter(); // Actualizar el contador de mensajes no leídos
+            }
+            messageList.appendChild(messageElement);
+            // Desplazar hacia abajo para mostrar el último mensaje
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+
+        function updateUnreadCounter() {
+            const unreadCounter = document.getElementById('unread-counter');
+            unreadCounter.textContent = `(${unreadMessages})`;
+
+            // Actualizar el título de la página con el número de mensajes sin leer
+            document.title = `Chat de clase ${unreadMessages > 0 ? '(' + unreadMessages + ')' : ''}`;
+        }
+
+        const sendButton = document.getElementById('send-button');
+        const messageText = document.getElementById('message-text');
+
+        sendButton.addEventListener('click', function() {
+            const message = messageText.value.trim();
+            if (message !== '') {
+                socket.emit('message', { name: teamName, message: message });
+                messageText.value = '';
+                addMessageToChat(`${teamName}: ${message}`, true);
+            }
+        });
+
+        socket.on('message', function(data) {
+            const message = `${data.name}: ${data.message}`;
+            addMessageToChat(message, false);
+        });
+
+        socket.on('roomFull', function() {
+            alert('La sala está llena. Por favor, inténtalo de nuevo más tarde.');
+            // Puedes realizar otras acciones aquí si la sala está llena
+        });
+
+        socket.on('cleanChat', function() {
+            const messageList = document.getElementById('message-list');
+            messageList.innerHTML = '';
+        });
+
+        // Cuando el usuario lee los mensajes, reiniciar el contador de mensajes no leídos
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                unreadMessages = 0;
+                updateUnreadCounter();
+            }
+        });
+    </script>
+</body>
+</html>
